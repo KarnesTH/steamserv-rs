@@ -1,7 +1,9 @@
 use chrono::{DateTime, Utc};
 use inquire::{Confirm, Text};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{io::BufRead, path::PathBuf, thread, time::Duration};
+
+use crate::utils::{default_spinner, Progress, ProgressStyle};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -107,7 +109,11 @@ impl Config {
                 .with_help_message("This is the path to your SteamCMD executable")
                 .prompt()?
         } else {
-            self.install_steamcmd().await?
+            let path = self.install_steamcmd().await?;
+            if path.is_empty() {
+                return Err("SteamCMD is required to use steamserv".into());
+            }
+            path
         };
         let install_path = Text::new("Please enter the path to the server install directory:")
             .with_help_message("This is the path to installing the servers.")
@@ -152,31 +158,50 @@ impl Config {
             let steamcmd_file = steamcmd_path.join("steamcmd_linux.tar.gz");
 
             std::fs::create_dir_all(&steamcmd_path)?;
-            std::fs::write(
-                &steamcmd_file,
-                reqwest::get(steamcmd_url).await?.bytes().await?.as_ref(),
-            )
-            .unwrap();
 
-            let tar = std::process::Command::new("tar")
-                .arg("-xvzf")
+            let mut progress = Progress::new(100, "Downloading SteamCMD", ProgressStyle::Bar)?;
+            let mut response = reqwest::get(steamcmd_url).await?;
+            let total_size = response.content_length().unwrap_or(0) as usize;
+            let mut downloaded = 0;
+
+            let mut content = Vec::new();
+            while let Some(chunk) = response.chunk().await? {
+                downloaded += chunk.len();
+                content.extend_from_slice(&chunk);
+                progress.update((downloaded * 100) / total_size)?;
+            }
+
+            std::fs::write(&steamcmd_file, &content)?;
+            progress.finish()?;
+
+            let mut extract_child = std::process::Command::new("tar")
+                .arg("-xzf")
                 .arg(&steamcmd_file)
                 .arg("-C")
                 .arg(&steamcmd_path)
-                .output()?;
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn()?;
 
-            if !tar.status.success() {
+            Self::run_with_spinner(&mut extract_child, "Extracting SteamCMD")?;
+
+            let status = extract_child.wait()?;
+            if !status.success() {
                 return Err("Could not extract SteamCMD".into());
             }
 
             std::fs::remove_file(&steamcmd_file)?;
 
-            println!("Initializing SteamCMD (this may take a while)...");
-            let init = std::process::Command::new(steamcmd_path.join("steamcmd.sh"))
+            let mut init_child = std::process::Command::new(steamcmd_path.join("steamcmd.sh"))
                 .arg("+quit")
-                .output()?;
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn()?;
 
-            if !init.status.success() {
+            Self::run_with_output(&mut init_child)?;
+
+            let init_status = init_child.wait()?;
+            if !init_status.success() {
                 return Err("Could not initialize SteamCMD".into());
             }
 
@@ -187,6 +212,53 @@ impl Config {
         } else {
             Err("SteamCMD is required to use steamserv".into())
         }
+    }
+
+    fn run_with_spinner(
+        command: &mut std::process::Child,
+        message: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut spinner = Progress::new(1, message, default_spinner()?)?;
+
+        if let Some(stdout) = command.stdout.take() {
+            let reader = std::io::BufReader::new(stdout);
+            for line in reader.lines() {
+                if let Ok(_) = line {
+                    spinner.tick()?;
+                    thread::sleep(Duration::from_millis(100));
+                }
+            }
+        }
+
+        spinner.finish()?;
+        Ok(())
+    }
+
+    fn run_with_output(
+        command: &mut std::process::Child,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        println!();
+        if let Some(stdout) = command.stdout.take() {
+            let reader = std::io::BufReader::new(stdout);
+            for line in reader.lines() {
+                if let Ok(line) = line {
+                    if line.contains("Redirecting stderr")
+                        || line.contains("UpdateUI")
+                        || line.contains("ILocalize")
+                    {
+                        continue;
+                    }
+
+                    if line.starts_with('[') {
+                        println!("Status: {}", line);
+                    } else {
+                        println!("{}", line);
+                    }
+                }
+            }
+        }
+        println!();
+        Ok(())
     }
 }
 
