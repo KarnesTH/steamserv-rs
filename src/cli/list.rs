@@ -1,4 +1,41 @@
+use std::path::PathBuf;
+
 use crate::utils::{Config, InstalledServer, ServerCache, ServerInfo};
+
+trait ServerDisplay {
+    fn get_app_id(&self) -> u32;
+    fn get_name(&self) -> &str;
+    fn get_path(&self) -> Option<&PathBuf>;
+}
+
+impl ServerDisplay for ServerInfo {
+    fn get_app_id(&self) -> u32 {
+        self.app_id
+    }
+    fn get_name(&self) -> &str {
+        &self.name
+    }
+    fn get_path(&self) -> Option<&PathBuf> {
+        None
+    }
+}
+
+impl ServerDisplay for InstalledServer {
+    fn get_app_id(&self) -> u32 {
+        self.app_id
+    }
+    fn get_name(&self) -> &str {
+        &self.name
+    }
+    fn get_path(&self) -> Option<&PathBuf> {
+        Some(&self.install_path)
+    }
+}
+
+enum ServerType {
+    Installed,
+    Available,
+}
 
 /// Handle the `list` command
 ///
@@ -54,13 +91,7 @@ fn list_available_servers(
         servers.iter().collect()
     };
 
-    println!("Available Servers:");
-    println!("{:<10} {}", "APP ID", "NAME");
-    println!("{:-50}", "");
-
-    for server in filtered {
-        println!("{:<10} {}", server.app_id, server.name);
-    }
+    display_output(ServerType::Available, &filtered)?;
 
     Ok(())
 }
@@ -92,17 +123,55 @@ fn list_installed_servers(
         servers.iter().collect()
     };
 
-    println!("\nInstalled Servers:");
-    println!("{:<10} {:<30} {}", "APP ID", "NAME", "PATH");
-    println!("{:-<70}", "");
+    display_output(ServerType::Installed, &filtered)?;
 
-    for server in filtered {
-        println!(
-            "{:<10} {:<30} {}",
-            server.app_id,
-            server.name,
-            server.install_path.display()
-        );
+    Ok(())
+}
+
+/// Display the output of the list command
+///
+/// # Arguments
+///
+/// * `server_type` - The type of server to display
+/// * `servers` - The list of servers to display
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the command was successful, otherwise an error
+///
+/// # Errors
+///
+/// Returns an error if the command fails
+fn display_output<T: ServerDisplay>(
+    server_type: ServerType,
+    servers: &[&T],
+) -> Result<(), Box<dyn std::error::Error>> {
+    match server_type {
+        ServerType::Installed => {
+            println!("Installed Servers:");
+            println!("{:<10} {:<50} {:<80}", "APP ID", "NAME", "PATH");
+            println!("{:-<140}", "");
+
+            for server in servers {
+                if let Some(path) = server.get_path() {
+                    println!(
+                        "{:<10} {:<50} {:<80}",
+                        server.get_app_id(),
+                        server.get_name(),
+                        path.display()
+                    );
+                }
+            }
+        }
+        ServerType::Available => {
+            println!("Available Servers:");
+            println!("{:<10} {:<50}", "APP ID", "NAME");
+            println!("{:-60}", "");
+
+            for server in servers {
+                println!("{:<10} {:<50}", server.get_app_id(), server.get_name());
+            }
+        }
     }
 
     Ok(())

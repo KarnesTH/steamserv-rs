@@ -235,11 +235,9 @@ impl Config {
 
         if let Some(stdout) = command.stdout.take() {
             let reader = std::io::BufReader::new(stdout);
-            for line in reader.lines() {
-                if let Ok(_) = line {
-                    spinner.tick()?;
-                    thread::sleep(Duration::from_millis(100));
-                }
+            for _ in reader.lines().map_while(Result::ok) {
+                spinner.tick()?;
+                thread::sleep(Duration::from_millis(100));
             }
         }
 
@@ -266,20 +264,18 @@ impl Config {
         println!();
         if let Some(stdout) = command.stdout.take() {
             let reader = std::io::BufReader::new(stdout);
-            for line in reader.lines() {
-                if let Ok(line) = line {
-                    if line.contains("Redirecting stderr")
-                        || line.contains("UpdateUI")
-                        || line.contains("ILocalize")
-                    {
-                        continue;
-                    }
+            for line in reader.lines().map_while(Result::ok) {
+                if line.contains("Redirecting stderr")
+                    || line.contains("UpdateUI")
+                    || line.contains("ILocalize")
+                {
+                    continue;
+                }
 
-                    if line.starts_with('[') {
-                        println!("Status: {}", line);
-                    } else {
-                        println!("{}", line);
-                    }
+                if line.starts_with('[') {
+                    println!("Status: {}", line);
+                } else {
+                    println!("{}", line);
                 }
             }
         }
