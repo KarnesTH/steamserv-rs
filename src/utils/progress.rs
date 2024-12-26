@@ -23,7 +23,7 @@ pub struct Progress {
 impl Progress {
     /// Create a new progress bar
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `total` - The total number of items to process
     /// - `message` - The message to display with the progress bar
@@ -49,7 +49,7 @@ impl Progress {
 
     /// Update the progress bar with the current value
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `current` - The current value of the progress bar
     ///
@@ -128,7 +128,7 @@ impl Progress {
 
     /// Render a spinner
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `states` - The states of the spinner
     ///

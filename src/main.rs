@@ -7,6 +7,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if !config.is_initialized {
         config.init().await?;
+        println!("Creating initial server cache...");
+        let mut cache = ServerCache::default();
+        cache.update_cache().await?;
+        println!("Setup complete! You can now use steamserv.");
     } else {
         let cli = Cli::parse();
         match cli.command {
@@ -27,8 +31,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Commands::Uninstall => {
                 println!("Uninstalling...");
             }
-            Commands::List => {
-                println!("Listing...");
+            Commands::List { installed, filter } => {
+                handle_list_command(installed, filter).await?;
             }
             Commands::Config => {
                 println!("Configuring...");

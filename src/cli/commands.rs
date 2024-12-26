@@ -21,8 +21,15 @@ pub enum Commands {
     },
     /// Uninstall a game server
     Uninstall,
-    /// List installed game servers
-    List,
+    /// List game servers
+    List {
+        /// Show installed game servers
+        #[arg(short, long)]
+        installed: bool,
+        /// Filter the list of game servers
+        #[arg(short, long)]
+        filter: Option<String>,
+    },
     /// Configure the SteamCMD installation
     Config,
 }

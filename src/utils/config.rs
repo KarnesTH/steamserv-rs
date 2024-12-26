@@ -35,7 +35,6 @@ pub struct ServerCache {
 pub struct ServerInfo {
     pub app_id: u32,
     pub name: String,
-    pub description: Option<String>,
 }
 
 impl Config {
@@ -117,6 +116,7 @@ impl Config {
         };
         let install_path = Text::new("Please enter the path to the server install directory:")
             .with_help_message("This is the path to installing the servers.")
+            .with_placeholder("e.g. /home/user/servers")
             .prompt()?;
 
         let config = Config {
@@ -128,8 +128,6 @@ impl Config {
         };
 
         config.save()?;
-
-        println!("Initialation complete. Thanks for using steamserv");
 
         Ok(())
     }
@@ -146,6 +144,7 @@ impl Config {
     async fn install_steamcmd(&self) -> Result<String, Box<dyn std::error::Error>> {
         let install_path = Text::new("Please enter the path to the SteamCMD install directory:")
             .with_help_message("This is the path you want to install SteamCMD.")
+            .with_placeholder("e.g. /home/user/steamcmd")
             .prompt()?;
         let confirm = Confirm::new("Do you want to install SteamCMD now?")
             .with_default(true)
@@ -214,6 +213,20 @@ impl Config {
         }
     }
 
+    /// Run a command with a spinner
+    ///
+    /// # Arguments
+    ///
+    /// - `command` - The command to run
+    /// - `message` - The message to display with the spinner
+    ///
+    /// # Returns
+    ///
+    /// Ok if the command was run successfully
+    ///
+    /// # Errors
+    ///
+    /// If the command could not be run
     fn run_with_spinner(
         command: &mut std::process::Child,
         message: &str,
@@ -234,6 +247,19 @@ impl Config {
         Ok(())
     }
 
+    /// Run a command and print the output
+    ///
+    /// # Arguments
+    ///
+    /// - `command` - The command to run
+    ///
+    /// # Returns
+    ///
+    /// Ok if the command was run successfully
+    ///
+    /// # Errors
+    ///
+    /// If the command could not be run
     fn run_with_output(
         command: &mut std::process::Child,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -326,6 +352,82 @@ impl ServerCache {
         std::fs::write(path, content)?;
         Ok(())
     }
+
+    /// Update the server cache
+    ///
+    /// # Returns
+    ///
+    /// Ok if the cache was updated successfully
+    ///
+    /// # Errors
+    ///
+    /// If the cache could not be updated
+    pub async fn update_cache(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let mut progress = Progress::new(100, "Updating server cache", ProgressStyle::Bar)?;
+        let mut response =
+            reqwest::get("https://api.steampowered.com/ISteamApps/GetAppList/v2/").await?;
+        let total_size = response.content_length().unwrap_or(1) as usize;
+        let mut downloaded = 0;
+
+        let mut content = Vec::new();
+        while let Some(chunk) = response.chunk().await? {
+            downloaded += chunk.len();
+            content.extend_from_slice(&chunk);
+            if total_size > 0 {
+                let progress_value = ((downloaded * 100) / total_size).min(100);
+                progress.update(progress_value)?;
+            }
+        }
+
+        let app_list: serde_json::Value = serde_json::from_slice(&content)?;
+        let apps = app_list["applist"]["apps"]
+            .as_array()
+            .ok_or("Invalid API response format")?;
+
+        self.servers = apps
+            .iter()
+            .filter_map(|app| {
+                let name = app["name"].as_str()?;
+                let app_id = app["appid"].as_u64()?;
+
+                if Self::is_game_server(name) {
+                    Some(ServerInfo {
+                        app_id: app_id as u32,
+                        name: name.to_string(),
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        self.last_update = Utc::now();
+        progress.finish()?;
+
+        self.save()?;
+
+        Ok(())
+    }
+
+    /// Check if a server is a game server
+    ///
+    /// # Arguments
+    ///
+    /// - `name` - The name of the server
+    ///
+    /// # Returns
+    ///
+    /// True if the server is a game server
+    fn is_game_server(name: &str) -> bool {
+        let name = name.to_lowercase();
+
+        if name.contains("browser") || name.contains("emulator") {
+            return false;
+        }
+
+        name.contains("dedicated server")
+            || name.contains("server tool")
+            || name.ends_with("server")
+    }
 }
 
 impl Default for ServerCache {
@@ -333,6 +435,29 @@ impl Default for ServerCache {
         Self {
             servers: Vec::new(),
             last_update: Utc::now(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_game_server() {
+        let test_names = vec![
+            "PalServer",
+            "专用服务器",
+            "Dedicated Server",
+            "サーバー",
+            "Server Browser",
+            "Masterserver",
+        ];
+
+        let expected_results = vec![true, false, true, false, false, true];
+
+        for (name, expected) in test_names.iter().zip(expected_results.iter()) {
+            assert_eq!(ServerCache::is_game_server(name), *expected);
         }
     }
 }
