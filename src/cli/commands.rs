@@ -1,5 +1,4 @@
 use clap::Subcommand;
-use std::path::PathBuf;
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -9,19 +8,25 @@ pub enum Commands {
     ///
     /// # Arguments
     ///
-    /// * `app_id` - The Steam App ID of the game server to install
-    /// * `path` - The path to install the game server to
-    /// * `username` - The username to use when installing the game server
-    /// * `password` - The password to use when installing the game server
+    /// * `app_id` - The Steam App ID of the game server
+    /// * `server_name` - The name of the game server
+    /// * `username` - The username of the Steam account to use
     Install {
-        app_id: u32,
-        path: PathBuf,
+        #[arg(short, long)]
+        app_id: Option<u32>,
+        #[arg(short, long)]
+        server_name: Option<String>,
+        #[arg(short, long)]
         username: Option<String>,
-        password: Option<String>,
     },
     /// Uninstall a game server
     Uninstall,
     /// List game servers
+    ///
+    /// # Arguments
+    ///
+    /// * `installed` - Show installed game servers
+    /// * `filter` - Filter the list of game servers
     List {
         /// Show installed game servers
         #[arg(short, long)]

@@ -19,14 +19,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             Commands::Install {
                 app_id,
-                path,
+                server_name,
                 username,
-                password,
             } => {
-                println!(
-                    "Installing app with ID {} to path {:?} with username {:?} and password {:?}...",
-                    app_id, path, username, password
-                );
+                if let Some(app_id) = app_id {
+                    println!("Installing app with ID {}...", app_id);
+                }
+                if let Some(server_name) = server_name {
+                    println!("Installing app with name {:?}...", server_name);
+                }
+                if let Some(username) = username {
+                    println!("Installing app with username {:?}...", username);
+                }
             }
             Commands::Uninstall => {
                 println!("Uninstalling...");
