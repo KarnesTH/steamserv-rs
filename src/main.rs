@@ -22,15 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 server_name,
                 username,
             } => {
-                if let Some(app_id) = app_id {
-                    println!("Installing app with ID {}...", app_id);
-                }
-                if let Some(server_name) = server_name {
-                    println!("Installing app with name {:?}...", server_name);
-                }
-                if let Some(username) = username {
-                    println!("Installing app with username {:?}...", username);
-                }
+                SteamCMD::install(app_id, server_name, username)?;
             }
             Commands::Uninstall => {
                 println!("Uninstalling...");

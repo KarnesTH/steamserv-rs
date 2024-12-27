@@ -1,9 +1,11 @@
 use chrono::{DateTime, Utc};
 use inquire::{Confirm, Text};
 use serde::{Deserialize, Serialize};
-use std::{io::BufRead, path::PathBuf, thread, time::Duration};
+use std::path::PathBuf;
 
-use crate::utils::{default_spinner, Progress, ProgressStyle};
+use crate::utils::{Progress, ProgressStyle};
+
+use super::{run_with_output, run_with_spinner};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -182,7 +184,7 @@ impl Config {
                 .stderr(std::process::Stdio::piped())
                 .spawn()?;
 
-            Self::run_with_spinner(&mut extract_child, "Extracting SteamCMD")?;
+            run_with_spinner(&mut extract_child, "Extracting SteamCMD")?;
 
             let status = extract_child.wait()?;
             if !status.success() {
@@ -197,7 +199,7 @@ impl Config {
                 .stderr(std::process::Stdio::piped())
                 .spawn()?;
 
-            Self::run_with_output(&mut init_child)?;
+            run_with_output(&mut init_child)?;
 
             let init_status = init_child.wait()?;
             if !init_status.success() {
@@ -211,76 +213,6 @@ impl Config {
         } else {
             Err("SteamCMD is required to use steamserv".into())
         }
-    }
-
-    /// Run a command with a spinner
-    ///
-    /// # Arguments
-    ///
-    /// - `command` - The command to run
-    /// - `message` - The message to display with the spinner
-    ///
-    /// # Returns
-    ///
-    /// Ok if the command was run successfully
-    ///
-    /// # Errors
-    ///
-    /// If the command could not be run
-    fn run_with_spinner(
-        command: &mut std::process::Child,
-        message: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut spinner = Progress::new(1, message, default_spinner()?)?;
-
-        if let Some(stdout) = command.stdout.take() {
-            let reader = std::io::BufReader::new(stdout);
-            for _ in reader.lines().map_while(Result::ok) {
-                spinner.tick()?;
-                thread::sleep(Duration::from_millis(100));
-            }
-        }
-
-        spinner.finish()?;
-        Ok(())
-    }
-
-    /// Run a command and print the output
-    ///
-    /// # Arguments
-    ///
-    /// - `command` - The command to run
-    ///
-    /// # Returns
-    ///
-    /// Ok if the command was run successfully
-    ///
-    /// # Errors
-    ///
-    /// If the command could not be run
-    fn run_with_output(
-        command: &mut std::process::Child,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        println!();
-        if let Some(stdout) = command.stdout.take() {
-            let reader = std::io::BufReader::new(stdout);
-            for line in reader.lines().map_while(Result::ok) {
-                if line.contains("Redirecting stderr")
-                    || line.contains("UpdateUI")
-                    || line.contains("ILocalize")
-                {
-                    continue;
-                }
-
-                if line.starts_with('[') {
-                    println!("Status: {}", line);
-                } else {
-                    println!("{}", line);
-                }
-            }
-        }
-        println!();
-        Ok(())
     }
 }
 
