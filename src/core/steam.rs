@@ -45,20 +45,16 @@ impl SteamCMD {
                 if confirm {
                     server_name
                 } else {
-                    let force_install_dir = Text::new("Please enter the name of the game server:")
+                    Text::new("Please enter the name of the game server:")
                         .with_placeholder("e.g. TestServer")
                         .with_help_message("It's the name for your game server folder.")
-                        .prompt()?;
-                    force_install_dir
+                        .prompt()?
                 }
             }
-            None => {
-                let force_install_dir = Text::new("Please enter the name of the game server:")
-                    .with_placeholder("e.g. TestServer")
-                    .with_help_message("It's the name for your game server folder.")
-                    .prompt()?;
-                force_install_dir
-            }
+            None => Text::new("Please enter the name of the game server:")
+                .with_placeholder("e.g. TestServer")
+                .with_help_message("It's the name for your game server folder.")
+                .prompt()?,
         };
 
         let login = match username {
@@ -127,7 +123,11 @@ impl SteamCMD {
             }
         };
 
-        let server_name = Self::check_app_id(app_id.unwrap())?;
+        let server_name = match app_id {
+            Some(app_id) => Self::check_app_id(app_id)?,
+            None => "".to_string(),
+        };
+
         let install_path = PathBuf::from(force_install_dir.clone());
 
         let steamcmd = SteamCMD {
@@ -175,10 +175,10 @@ impl SteamCMD {
         steamcmd: SteamCMD,
         steamcmd_path: PathBuf,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut install_child = std::process::Command::new(steamcmd_path.join("steamcmd.sh"))
+        let mut install_child = std::process::Command::new(steamcmd_path)
             .arg(format!(
                 "+force_install_dir {}",
-                steamcmd.force_install_dir.unwrap()
+                steamcmd.force_install_dir.clone().unwrap()
             ))
             .arg(format!(
                 "+login {} {}",
