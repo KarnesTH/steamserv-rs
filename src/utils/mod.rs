@@ -1,7 +1,11 @@
 pub mod config;
 pub mod progress;
 
-use std::{io::BufRead, thread, time::Duration};
+use std::{
+    io::{BufRead, Write},
+    thread,
+    time::Duration,
+};
 
 pub use config::{Config, InstalledServer, ServerCache, ServerInfo};
 pub use progress::{default_spinner, Progress, ProgressStyle};
@@ -70,6 +74,7 @@ pub fn run_with_output(
             } else {
                 println!("{}", line);
             }
+            std::io::stdout().flush()?;
         }
     }
     println!();

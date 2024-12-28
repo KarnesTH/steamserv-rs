@@ -26,7 +26,7 @@ impl SteamCMD {
     /// # Errors
     ///
     /// If the game server could not be installed
-    pub fn install(
+    pub async fn install(
         app_id: Option<u32>,
         server_name: Option<String>,
         username: Option<String>,
@@ -43,18 +43,22 @@ impl SteamCMD {
                 ))
                 .prompt()?;
                 if confirm {
-                    server_name
+                    format!("{}/{}", config.install_path.display(), server_name)
                 } else {
                     Text::new("Please enter the name of the game server:")
                         .with_placeholder("e.g. TestServer")
                         .with_help_message("It's the name for your game server folder.")
-                        .prompt()?
+                        .prompt()?;
+                    format!("{}/{}", config.install_path.display(), server_name)
                 }
             }
-            None => Text::new("Please enter the name of the game server:")
-                .with_placeholder("e.g. TestServer")
-                .with_help_message("It's the name for your game server folder.")
-                .prompt()?,
+            None => {
+                let name = Text::new("Please enter the name of the game server:")
+                    .with_placeholder("e.g. TestServer")
+                    .with_help_message("It's the name for your game server folder.")
+                    .prompt()?;
+                format!("{}/{}", config.install_path.display(), name)
+            }
         };
 
         let login = match username {
@@ -101,7 +105,7 @@ impl SteamCMD {
                 } else {
                     let app_id =
                         Text::new("Please enter the Steam App ID of the game server.").prompt()?;
-                    Some(app_id.parse::<u32>()?)
+                    app_id.parse::<u32>().ok()
                 }
             }
             None => {
@@ -123,12 +127,9 @@ impl SteamCMD {
             }
         };
 
-        let server_name = match app_id {
-            Some(app_id) => Self::check_app_id(app_id)?,
-            None => "".to_string(),
-        };
+        let server_name = force_install_dir.split('/').last().unwrap().to_string();
 
-        let install_path = PathBuf::from(force_install_dir.clone());
+        let install_path = PathBuf::from(&force_install_dir);
 
         let steamcmd = SteamCMD {
             login,
@@ -141,7 +142,7 @@ impl SteamCMD {
         Self::execute_install_command(steamcmd, config.steamcmd_path.clone())?;
 
         let server = InstalledServer {
-            app_id: app_id.unwrap(),
+            app_id: app_update.unwrap(),
             name: server_name,
             install_path,
             install_date: chrono::Local::now().to_utc(),
@@ -153,6 +154,8 @@ impl SteamCMD {
         config.installed_servers.push(server);
 
         config.save()?;
+
+        println!("Server installation successfully.");
 
         Ok(())
     }
