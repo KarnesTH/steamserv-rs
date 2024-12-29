@@ -168,6 +168,68 @@ impl SteamCMD {
         Ok(())
     }
 
+    /// Uninstall a game server
+    ///
+    /// # Arguments
+    ///
+    /// * `server_name` - The name of the game server
+    ///
+    /// # Returns
+    ///
+    /// Ok if the game server was uninstalled successfully
+    ///
+    /// # Errors
+    ///
+    /// If the game server could not be uninstalled
+    pub fn uninstall(server_name: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = Config::load()?;
+        let servers: Vec<InstalledServer> = config.installed_servers.clone();
+
+        let server_names = servers
+            .iter()
+            .map(|s| s.name.clone())
+            .collect::<Vec<String>>();
+
+        let server_name = match server_name {
+            Some(server_name) => {
+                if server_names.contains(&server_name) {
+                    server_name
+                } else {
+                    Text::new("Please enter the name of the game server:")
+                        .with_placeholder("e.g. TestServer")
+                        .with_help_message("It's the name for your game server folder.")
+                        .prompt()?
+                }
+            }
+            None => {
+                let server_name =
+                    Select::new("Please select the game server to uninstall", server_names)
+                        .with_help_message("Which of this game servers you will uninstall?")
+                        .prompt()?;
+                server_name
+            }
+        };
+
+        let server = servers.iter().find(|s| s.name == server_name).unwrap();
+
+        let force_install_dir = server.install_path.clone();
+
+        let confirm = Confirm::new(&format!(
+            "Are you sure you want to uninstall the server {}?",
+            server_name
+        ))
+        .prompt()?;
+
+        if confirm {
+            std::fs::remove_dir_all(force_install_dir)?;
+            config.installed_servers.retain(|s| s.name != server_name);
+            config.save()?;
+            println!("Server uninstalled successfully.");
+        }
+
+        Ok(())
+    }
+
     /// Execute the install command
     ///
     /// # Arguments

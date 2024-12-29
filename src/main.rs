@@ -24,8 +24,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } => {
                 SteamCMD::install(app_id, server_name, username)?;
             }
-            Commands::Uninstall => {
-                println!("Uninstalling...");
+            Commands::Uninstall { server_name } => {
+                SteamCMD::uninstall(server_name)?;
             }
             Commands::List { installed, filter } => {
                 handle_list_command(installed, filter).await?;

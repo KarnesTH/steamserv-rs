@@ -27,7 +27,14 @@ pub enum Commands {
         username: Option<String>,
     },
     /// Uninstall a game server
-    Uninstall,
+    ///
+    /// # Arguments
+    ///
+    /// * `server_name` - The name of the game server to uninstall
+    Uninstall {
+        #[arg(short, long)]
+        server_name: Option<String>,
+    },
     /// List game servers
     ///
     /// # Arguments
