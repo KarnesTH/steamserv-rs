@@ -236,6 +236,17 @@ impl Default for Config {
     }
 }
 
+impl InstalledServer {
+    /// Update the last updated timestamp
+    ///
+    /// # Returns
+    ///
+    /// The updated installed server
+    pub fn update_timestamp(&mut self) {
+        self.last_updated = chrono::Local::now().to_utc();
+    }
+}
+
 impl ServerCache {
     /// Get the path to the server cache file
     ///

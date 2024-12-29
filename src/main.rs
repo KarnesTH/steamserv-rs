@@ -14,8 +14,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         let cli = Cli::parse();
         match cli.command {
-            Commands::Update => {
-                println!("Updating...");
+            Commands::Update { server_name } => {
+                SteamCMD::update(server_name)?;
             }
             Commands::Install {
                 app_id,

@@ -2,8 +2,15 @@ use clap::Subcommand;
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Update the SteamCMD installation
-    Update,
+    /// Update the game server
+    ///
+    /// # Arguments
+    ///
+    /// * `server_name` - The name of the game server to use
+    Update {
+        #[arg(short, long)]
+        server_name: Option<String>,
+    },
     /// Install an game server
     ///
     /// # Arguments

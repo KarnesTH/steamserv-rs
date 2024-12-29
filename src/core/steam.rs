@@ -88,6 +88,86 @@ impl SteamCMD {
         Ok(())
     }
 
+    /// Update a game server
+    ///
+    /// # Arguments
+    ///
+    /// * `server_name` - The name of the game server
+    ///
+    /// # Returns
+    ///
+    /// Ok if the game server was updated successfully
+    ///
+    /// # Errors
+    ///
+    /// If the game server could not be updated
+    pub fn update(server_name: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = Config::load()?;
+        let servers: Vec<InstalledServer> = config.installed_servers.clone();
+
+        let server_names = servers
+            .iter()
+            .map(|s| s.name.clone())
+            .collect::<Vec<String>>();
+
+        let server_name = match server_name {
+            Some(server_name) => {
+                if server_names.contains(&server_name) {
+                    server_name
+                } else {
+                    Text::new("Please enter the name of the game server:")
+                        .with_placeholder("e.g. TestServer")
+                        .with_help_message("It's the name for your game server folder.")
+                        .prompt()?
+                }
+            }
+            None => {
+                let server_name =
+                    Select::new("Please select the game server to update", server_names)
+                        .with_help_message("Which of this game servers you will update?")
+                        .prompt()?;
+                server_name
+            }
+        };
+
+        let server = servers.iter().find(|s| s.name == server_name).unwrap();
+
+        let login = match server.login_type {
+            LoginType::Anonymous => ("anonymous".to_string(), "".to_string()),
+            LoginType::SteamAccount => {
+                let username = Text::new("Please enter your steam username:").prompt()?;
+                let password = Password::new("Please enter your password for your steam account.")
+                    .without_confirmation()
+                    .prompt()?;
+                (username, password)
+            }
+        };
+
+        let force_install_dir = server.install_path.clone();
+        let app_update = server.app_id;
+
+        let steamcmd = SteamCMD {
+            login,
+            force_install_dir: force_install_dir.display().to_string(),
+            app_update,
+        };
+
+        Self::execute_install_command(steamcmd, config.steamcmd_path.clone())?;
+
+        if let Some(server) = config
+            .installed_servers
+            .iter_mut()
+            .find(|s| s.name == server_name)
+        {
+            server.update_timestamp();
+            config.save()?;
+        }
+
+        println!("Server update successfully.");
+
+        Ok(())
+    }
+
     /// Execute the install command
     ///
     /// # Arguments
