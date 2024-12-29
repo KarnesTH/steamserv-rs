@@ -7,7 +7,7 @@ use crate::utils::{Progress, ProgressStyle};
 
 use super::{run_with_output, run_with_spinner};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     pub steamcmd_path: PathBuf,
     pub install_path: PathBuf,
@@ -16,7 +16,7 @@ pub struct Config {
     pub is_initialized: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct InstalledServer {
     pub app_id: u32,
     pub name: String,
@@ -25,6 +25,13 @@ pub struct InstalledServer {
     pub last_updated: DateTime<Utc>,
     pub auto_update: bool,
     pub port: Option<u16>,
+    pub login_type: LoginType,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum LoginType {
+    SteamAccount,
+    Anonymous,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 server_name,
                 username,
             } => {
-                SteamCMD::install(app_id, server_name, username).await?;
+                SteamCMD::install(app_id, server_name, username)?;
             }
             Commands::Uninstall => {
                 println!("Uninstalling...");
