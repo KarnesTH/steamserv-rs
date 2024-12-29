@@ -82,6 +82,16 @@ steamserv-rs update --server-name <server name>
 steamserv-rs update
 ```
 
+### Uninstall a game server
+```bash
+// Uninstall a game server with specific server name
+steamserv-rs uninstall --server-name <server name>
+```
+```bash
+// User interactive mode to uninstall a game server
+steamserv-rs uninstall
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
