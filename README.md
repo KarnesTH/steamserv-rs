@@ -48,11 +48,40 @@ cargo install --path .
 
 ## Usage
 
+### Install a game server
 ```bash
-steamserv-rs install --appid <steam app id> --path <path to install the server>
+// Install a game server with specific appid, server name and steam user name
+steamserv-rs install --appid <steam app id> --server-name <folder server name> --username <steam user name>
+```
+```bash
+// User interactive mode to install a game server
+steamserv-rs install
+```
+
+### List game servers
+```bash
+// List all available game servers
+steamserv-rs list
+```
+```bash
+// List all installed game servers
+steamserv-rs list --installed
+```
+```bash
+// List all available game servers that match the filter
+steamserv-rs list --filter <server name>
+```
+
+### Update a game server
+```bash
+// Update a game server with specific server name
+steamserv-rs update --server-name <server name>
+```
+```bash
+// User interactive mode to update a game server
+steamserv-rs update
 ```
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
-```
