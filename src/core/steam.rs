@@ -1,8 +1,11 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, process::Output};
 
 use inquire::{Confirm, Password, Select, Text};
 
-use crate::utils::{config::LoginType, run_with_output, Config, InstalledServer, ServerCache};
+use crate::utils::{
+    config::{LoginType, Platform},
+    run_with_output, Config, InstalledServer, ServerCache,
+};
 
 pub struct SteamCMD {
     pub login: (String, String),
@@ -58,6 +61,17 @@ impl SteamCMD {
 
         let install_path = PathBuf::from(&force_install_dir);
 
+        match Self::ceck_platform(config.clone(), app_update, Some(login.clone())) {
+            Ok(platforms) => {
+                if platforms.is_empty() {
+                    return Err("Could not detect the platform".into());
+                }
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+
         let steamcmd = SteamCMD {
             login,
             force_install_dir,
@@ -66,15 +80,12 @@ impl SteamCMD {
 
         Self::execute_install_command(steamcmd, config.steamcmd_path.clone())?;
 
-        let auto_update = Confirm::new("Would you like to enable auto updates?").prompt()?;
-
         let server = InstalledServer {
             app_id: app_update,
             name: server_name,
             install_path,
             install_date: chrono::Local::now().to_utc(),
             last_updated: chrono::Local::now().to_utc(),
-            auto_update,
             port: None,
             login_type,
         };
@@ -439,5 +450,64 @@ impl SteamCMD {
         };
 
         Ok(app_update.unwrap())
+    }
+
+    /// Detect the platforms for a game server
+    ///
+    /// # Arguments
+    ///
+    /// - `config` - The config
+    /// - `app_id` - The app id of the server
+    ///
+    /// # Returns
+    ///
+    /// The detected platforms
+    ///
+    /// # Errors
+    ///
+    /// If the platforms could not be detected
+    fn ceck_platform(
+        config: Config,
+        app_id: u32,
+        login: Option<(String, String)>,
+    ) -> Result<Vec<Platform>, Box<dyn std::error::Error>> {
+        let mut platforms = Vec::new();
+
+        let linux = Self::execute_status_command(app_id, login.clone(), "linux", config.clone())?;
+
+        let windows = Self::execute_status_command(app_id, login, "windows", config)?;
+
+        let linux_output = String::from_utf8_lossy(&linux.stdout);
+        let windows_output = String::from_utf8_lossy(&windows.stdout);
+
+        if !linux_output.contains("Invalid Platform") && !linux_output.contains("unknown") {
+            platforms.push(Platform::Linux);
+        }
+
+        if !windows_output.contains("Invalid Platform") && !windows_output.contains("unknown") {
+            platforms.push(Platform::Windows);
+        }
+
+        Ok(platforms)
+    }
+
+    fn execute_status_command(
+        app_id: u32,
+        login: Option<(String, String)>,
+        platform: &str,
+        config: Config,
+    ) -> Result<Output, Box<dyn std::error::Error>> {
+        let command = std::process::Command::new(&config.steamcmd_path)
+            .arg("+sSteamCmdForcePlatformType")
+            .arg(platform)
+            .arg("+login")
+            .arg(login.clone().unwrap().0)
+            .arg(login.clone().unwrap().1)
+            .arg("+app_status")
+            .arg(app_id.to_string())
+            .arg("+quit")
+            .output();
+
+        Ok(command?)
     }
 }

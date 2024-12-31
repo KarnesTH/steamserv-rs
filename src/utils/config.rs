@@ -23,7 +23,6 @@ pub struct InstalledServer {
     pub install_path: PathBuf,
     pub install_date: DateTime<Utc>,
     pub last_updated: DateTime<Utc>,
-    pub auto_update: bool,
     pub port: Option<u16>,
     pub login_type: LoginType,
 }
@@ -44,6 +43,14 @@ pub struct ServerCache {
 pub struct ServerInfo {
     pub app_id: u32,
     pub name: String,
+    pub plattform: Vec<Platform>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Platform {
+    Windows,
+    Linux,
+    Unknown,
 }
 
 impl Config {
@@ -340,6 +347,7 @@ impl ServerCache {
                     Some(ServerInfo {
                         app_id: app_id as u32,
                         name: name.to_string(),
+                        plattform: vec![Platform::Unknown],
                     })
                 } else {
                     None
